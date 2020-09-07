@@ -79,8 +79,8 @@ df.flag_sel = [rand(Bernoulli(i)) for i in df.pr_sel]
 df.flag_obs = df.flag_sel .* df.flag_cov
 sum(df.flag_obs) / size(df, 1)
 
-## audit sample -- simple random sample
-audit_sample = df[sample(findall(df.flag_obs), 1000),:]
+## audit sample -- simple random sample (different size ? 1000 / 5000)
+audit_sample = df[sample(findall(df.flag_obs), 2500),:]
 
 ## true y
 df.y |> freqtable |> prop
