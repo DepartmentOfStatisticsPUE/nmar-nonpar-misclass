@@ -66,57 +66,66 @@ vcramer(freqtable(df.y, df.x2))
 vcramer(freqtable(df.x1, df.x2))
 
 ##### this is for simulation
-## coverage error ~ 80%
-df.eta_cov = @. 1.5 * (df.x1 == 3) - 0.3 * (df.x2 == 0) 
-df.pr_cov = @. exp(df.eta_cov) / (1 + exp(df.eta_cov))
-
 ## response error
-df.eta_sel = @. 1.5 * (df.y == 2)
+df.eta_sel = @. 1.5 * (df.y == 3) - 0.5 * (df.x2 == 1)
 df.pr_sel = @. exp(df.eta_sel) / (1 + exp(df.eta_sel))
  
-### observed data 
-df.flag_cov = [rand(Bernoulli(i)) for i in df.pr_cov]
-df.flag_sel = [rand(Bernoulli(i)) for i in df.pr_sel]
+## dataframe to save results
 
-## save data 
-savejdf("data/sim-data.jdf", df) ## ~18 mb
+df_results = DataFrame(
+    iter=Int64[], cat = Int64[], 
+    known=Float64[], noerr=Float64[], 
+    mis1=Float64[], mis2=Float64[], mis3=Float64[], 
+    naive=Float64[])
 
-df.flag_obs = df.flag_sel .* df.flag_cov
+for b in 1:200
+    Random.seed!(b)
+    ### observed data 
+    df.flag_sel = [rand(Bernoulli(i)) for i in df.pr_sel]
+    ## audit sample from selected
+    audit_sample = df[sample(findall(df.flag_sel), 2000),:]
+    
+    ### estimation of probabilities
+    model_z3_x1 = glm(@formula(z3_x1 ~ x1), audit_sample, Binomial(), LogitLink());
+    model_z3_x2 = glm(@formula(z3_x2 ~ x2), audit_sample, Binomial(), LogitLink());
+    model_z3_x2 = glm(@formula(z3_x2 ~ x2), audit_sample, Binomial(), LogitLink());
+    
 
+    ## using all information (testing whether the method works)
+    res_noerr = nmar_npar(:flag_sel, :y, [:y, :x2], [:x1, :x2], df)
+    res_mis1 = nmar_npar(:flag_sel, :y, [:y, :x2], [:z1_x1, :x2], df)
+    res_mis2 = nmar_npar(:flag_sel, :z2_y, [:z2_y, :x2], [:x1, :x2], df)
+    res_mis3 = nmar_npar(:flag_sel, :z3_y, [:z3_y, :z3_x2], [:z3_x1, :z3_x2], df)
 
-## audit sample -- simple random sample (different size ? 1000 / 5000)
-audit_sample = df[sample(findall(df.flag_obs), 2000),:]
+    sim_res = DataFrame(
+        iter = [b,b,b],
+        cat = sort(unique(df.y)), 
+        known = freqtable(df.y) |> prop,
+        #noerr = freqtable(res_noerr.y, weights = res_noerr.m_hat .+ res_noerr.n) |> prop,
+        noerr = freqtable(res_noerr.y, weights =  res_noerr.m_hat .+ res_noerr.n ) |> prop,
+        mis1= freqtable(res_mis1.y, weights = res_mis1.m_hat .+ res_mis1.n) |> prop,
+        mis2= freqtable(res_mis2.z2_y, weights = res_mis2.m_hat .+ res_mis2.n) |> prop,
+        mis3 = freqtable(res_mis3.z3_y, weights = res_mis3.m_hat .+ res_mis3.n) |> prop,
+        naive = freqtable(df.y[df.flag_sel .==1]) |> prop
+        ) 
+        append!(df_results, sim_res)
+end
 
-sim_result = hcat(df.y |> freqtable |> prop,
-                  df.y[df.flag_obs .==1] |> freqtable |> prop,
-                  df.z2_y[df.flag_obs .==1] |> freqtable |> prop,
-                  df.z3_y[df.flag_obs .==1] |> freqtable |> prop) 
+grr = groupby(df_results, :cat)
+expected_values = combine(grr, valuecols(grr) .=> mean)
+expected_bias = expected_values[:, 4:end] .- expected_values.known_mean
+sum(abs.(Array(expected_bias)), dims = 1)
 
-setnames!(sim_result, ["true", "naive_y", "sim2_y", "sim3_y"], 2);
-sim_result
-
-## estimate probabilities
-### estimate probs for x2 (binary)
-model_z3_x2 = glm(@formula(z3_x2 ~ x2), audit_sample, Binomial(), LogitLink());
-predict(model_z3_x2)
-
-model_z3_x3 = fit(EconometricModel, @formula(z2_y ~ y), audit_sample);
-model_z3_x3_pr = mapslices(softmax, fitted(model_z3_x3), dims =2)
-
-
-## using all information (testing whether the method works)
-
-res = nmar_npar(:flag_sel, :y, :y, [:x1, :x2], df)
-
-hcat(
-    freqtable(res.y, weights = res.m_hat .+ res.n) |> prop,
-    freqtable(df.y) |> prop,
-    freqtable(df.y[df.flag_obs .==1]) |> prop
-)
+expected_variance = combine(grr, valuecols(grr) .=> var)
+expected_mse = (Array(expected_bias.^2) .+ Array(expected_variance[:, 4:end])) .* 10000
 
 
 ## naive (without weighting)
 ## naive non-parametric 
 ## corrected non-parametric
 
-l
+## variables
+df_plot = stack(df_results, [:known, :noerr, :mis1, :mis2, :mis3, :naive])
+df_plot.variable = String.(df_plot.variable)
+StatsPlots.boxplot(df_plot.variable, df_plot.value, group = df_plot.cat)
+

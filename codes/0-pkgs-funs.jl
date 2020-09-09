@@ -5,6 +5,7 @@ using DataFramesMeta
 using Plots
 using Statistics
 using StatsBase
+using StatsPlots
 using FreqTables
 using HypothesisTests
 using NamedArrays
@@ -13,6 +14,7 @@ using GLM
 using Econometrics
 using StatsFuns
 using JDF ## serialization
+using RData
 
 function vcramer(x)
     test_res = ChisqTest(x)
@@ -22,13 +24,14 @@ end
 
 
 
-function nmar_npar(selection, target, calvars, totalvars, data::DataFrame)
+function nmar_npar(selection, target, calvars, totalvars, data::DataFrame, maxiter=10000, tol = 1e-10)
     
     vars_all = unique(vcat([selection, calvars, totalvars, target]...))
     vars_cal_tot = unique(vcat([calvars, totalvars]...))
     vars_cal_tot = setdiff(vars_cal_tot, [target])
 
     df_sampl = by(data, vars_all, n = selection => length)
+    df_sampl = sort(df_sampl, vars_all)
     df_sampl_obs = df_sampl[df_sampl[!, selection].== 1, :]
     df_sampl_obs = @transform(groupby(df_sampl_obs, vars_cal_tot), p_hat = :n/sum(:n))
     df_sampl_nonobs = by(df_sampl[df_sampl[!, selection] .== 0,:], vars_cal_tot, m = :n => sum)
@@ -36,11 +39,11 @@ function nmar_npar(selection, target, calvars, totalvars, data::DataFrame)
     df_sampl_obs.O = 1
     O_start = df_sampl_obs.O
 
-    for iter in 1:10000
+    for iter in 1:maxiter
         df_sampl_obs = @transform(groupby(df_sampl_obs, totalvars), m_hat = :m .* :p_hat .* :O / sum(:p_hat .* :O))
         df_sampl_obs = @transform(groupby(df_sampl_obs, calvars), O = sum(:m_hat) / sum(:n))
         dif = sum((O_start - df_sampl_obs.O).^2)   
-        if (dif < sqrt(eps()))
+        if (dif < tol)
             println("Converged on interation: ", iter, " with diff equal to ", dif)
             break
         end
@@ -49,3 +52,5 @@ function nmar_npar(selection, target, calvars, totalvars, data::DataFrame)
 
     return df_sampl_obs
 end 
+
+
