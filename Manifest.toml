@@ -274,6 +274,18 @@ git-tree-sha1 = "c98c1b5c2b5eeb6d867ec77b936132b8e7c978c0"
 uuid = "6a86dc24-6348-571c-b903-95158fe2bd41"
 version = "2.6.0"
 
+[[FixedEffectModels]]
+deps = ["Combinatorics", "DataFrames", "Distributions", "FillArrays", "FixedEffects", "LinearAlgebra", "Printf", "Random", "Reexport", "Statistics", "StatsBase", "StatsModels", "Tables"]
+git-tree-sha1 = "3e31d5e1a64e004c370cde2457c67d4bdc24f80d"
+uuid = "9d5cd8c9-2029-5cab-9928-427838db53e3"
+version = "0.10.9"
+
+[[FixedEffects]]
+deps = ["CategoricalArrays", "Distributed", "FillArrays", "LinearAlgebra", "Reexport", "Requires", "StatsBase"]
+git-tree-sha1 = "dd649f818eb6b458046e2f002a1c61c2140344d0"
+uuid = "c8885935-8500-56a7-9867-7708b20db0eb"
+version = "0.7.4"
+
 [[FixedPointNumbers]]
 git-tree-sha1 = "4aaea64dd0c30ad79037084f8ca2b94348e65eaa"
 uuid = "53c48c17-4a7d-5ca2-90c5-79b7896eea93"
@@ -717,6 +729,12 @@ deps = ["Pkg"]
 git-tree-sha1 = "7b1d07f411bc8ddb7977ec7f377b97b158514fe0"
 uuid = "189a3867-3050-52da-a836-e630ba90ab69"
 version = "0.2.0"
+
+[[RegressionTables]]
+deps = ["Compat", "Distributions", "FixedEffectModels", "Formatting", "GLM", "Parameters", "Statistics", "StatsBase", "StatsModels"]
+git-tree-sha1 = "02ee6f9a0649bd9d36d9ee2228ee4cd3ec52e978"
+uuid = "d519eb52-b820-54da-95a6-98e1306fdade"
+version = "0.4.0"
 
 [[Requires]]
 deps = ["UUIDs"]

@@ -74,28 +74,47 @@ df.pr_sel = @. exp(df.eta_sel) / (1 + exp(df.eta_sel))
 
 df_results = DataFrame(
     iter=Int64[], cat = Int64[], 
-    known=Float64[], noerr=Float64[], 
-    mis1=Float64[], mis2=Float64[], mis3=Float64[], 
+    known=Float64[], 
+    noerr=Float64[], 
+    #mis1=Float64[], mis2=Float64[], mis3=Float64[], 
     naive=Float64[])
 
 for b in 1:200
     Random.seed!(b)
     ### observed data 
     df.flag_sel = [rand(Bernoulli(i)) for i in df.pr_sel]
-    ## audit sample from selected
-    audit_sample = df[sample(findall(df.flag_sel), 2000),:]
     
-    ### estimation of probabilities
-    model_z3_x1 = glm(@formula(z3_x1 ~ x1), audit_sample, Binomial(), LogitLink());
-    model_z3_x2 = glm(@formula(z3_x2 ~ x2), audit_sample, Binomial(), LogitLink());
-    model_z3_x2 = glm(@formula(z3_x2 ~ x2), audit_sample, Binomial(), LogitLink());
-    
+        ## audit sample from selected
+        audit_sample = df[sample(findall(df.flag_sel), 2000),:]
+        audit_sample.z3_x2 = Array(audit_sample.z3_x2) ## convert categorical to int
+        ### estimation of probabilities
+        model_z1_x1 = fit(EconometricModel, @formula(z3_x1 ~ x1), audit_sample) ## multinomial
+        model_z2_y = fit(EconometricModel, @formula(z2_y ~ y), audit_sample) ## multinomial
+        model_z3_x1 = fit(EconometricModel, @formula(z3_x1 ~ x1), audit_sample) ## binomial
+        model_z3_x2 = fit(EconometricModel, @formula(z3_x2 ~ x2), audit_sample) ## multinomial
+        model_z3_y = fit(EconometricModel, @formula(z3_y ~ y), audit_sample) ## multinomial
+        ### fitted probabilities
+        model_z1_x1_pr = mapslices(softmax, fitted(model_z1_x1), dims =2)
+        model_z2_y_pr = mapslices(softmax, fitted(model_z2_y), dims =2)
+        model_z3_x1_pr = mapslices(softmax, fitted(model_z3_x1), dims =2)
+        model_z3_x2_pr = hcat(fitted(model_z3_x2), 1 .- fitted(model_z3_x2))
+        model_z3_y_pr = mapslices(softmax, fitted(model_z3_y), dims = 2)
 
+    ## prepare data -- without errors
+    df_sampl = by(df, [:flag_sel, :y, :x1, :x2], n = :flag_sel => length)
+    df_sampl_obs = df_sampl[df_sampl.flag_sel .== 1, :]
+    df_sampl_obs = @transform(groupby(df_sampl_obs, [:x1, :x2]), p_hat = :n/sum(:n))
+    df_sampl_nonobs = by(df_sampl[df_sampl.flag_sel .== 0,:], [:x1, :x2], m = :n => sum)
+    df_sampl_obs = leftjoin(df_sampl_obs, df_sampl_nonobs, on = [:x1, :x2])
+    df_sampl_obs.O = 1
+    O_start = df_sampl_obs.O
+        
+        
     ## using all information (testing whether the method works)
-    res_noerr = nmar_npar(:flag_sel, :y, [:y, :x2], [:x1, :x2], df)
-    res_mis1 = nmar_npar(:flag_sel, :y, [:y, :x2], [:z1_x1, :x2], df)
-    res_mis2 = nmar_npar(:flag_sel, :z2_y, [:z2_y, :x2], [:x1, :x2], df)
-    res_mis3 = nmar_npar(:flag_sel, :z3_y, [:z3_y, :z3_x2], [:z3_x1, :z3_x2], df)
+    res_noerr = nmar_npar( [:y, :x2], [:x1, :x2], df_sampl_obs) ##### without errors
+    #res_mis1 = nmar_npar(:flag_sel, :y, [:y, :x2], [:z1_x1, :x2], df) ## with errors in x1
+    #res_mis2 = nmar_npar(:flag_sel, :z2_y, [:z2_y, :x2], [:x1, :x2], df) ## with errors in y
+    #res_mis3 = nmar_npar(:flag_sel, :z3_y, [:z3_y, :z3_x2], [:z3_x1, :z3_x2], df) ## with errors on all 
 
     sim_res = DataFrame(
         iter = [b,b,b],
@@ -103,9 +122,9 @@ for b in 1:200
         known = freqtable(df.y) |> prop,
         #noerr = freqtable(res_noerr.y, weights = res_noerr.m_hat .+ res_noerr.n) |> prop,
         noerr = freqtable(res_noerr.y, weights =  res_noerr.m_hat .+ res_noerr.n ) |> prop,
-        mis1= freqtable(res_mis1.y, weights = res_mis1.m_hat .+ res_mis1.n) |> prop,
-        mis2= freqtable(res_mis2.z2_y, weights = res_mis2.m_hat .+ res_mis2.n) |> prop,
-        mis3 = freqtable(res_mis3.z3_y, weights = res_mis3.m_hat .+ res_mis3.n) |> prop,
+        #mis1= freqtable(res_mis1.y, weights = res_mis1.m_hat .+ res_mis1.n) |> prop,
+        #mis2= freqtable(res_mis2.z2_y, weights = res_mis2.m_hat .+ res_mis2.n) |> prop,
+        #mis3 = freqtable(res_mis3.z3_y, weights = res_mis3.m_hat .+ res_mis3.n) |> prop,
         naive = freqtable(df.y[df.flag_sel .==1]) |> prop
         ) 
         append!(df_results, sim_res)
