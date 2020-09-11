@@ -12,6 +12,7 @@ using NamedArrays
 using StatsModels
 using Econometrics
 using GLM
+using Lasso 
 using StatsFuns
 using JDF ## serialization
 using RData

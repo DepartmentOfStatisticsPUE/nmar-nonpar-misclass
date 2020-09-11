@@ -136,6 +136,7 @@ expected_bias = expected_values[:, 4:end] .- expected_values.known_mean
 sum(abs.(Array(expected_bias)), dims = 1)
 
 expected_variance = combine(grr, valuecols(grr) .=> var)
+
 expected_mse = (Array(expected_bias.^2) .+ Array(expected_variance[:, 4:end])) .* 10000
 
 
