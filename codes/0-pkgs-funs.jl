@@ -26,23 +26,36 @@ end
 
 
 
-function nmar_npar(X, Z, data::DataFrame, maxiter=10000, tol = sqrt(eps()))
+function nmar_nonpar(X::Array{Symbol,1}, Z::Array{Symbol,1}, sel::Array{Symbol,1}, target::Array{Symbol,1}, 
+                     data::DataFrame, maxiter=10000, tol = sqrt(eps()))::DataFrame
     
-    data_temp = data
-    O_start = data_temp.O
+    #vars_all = unique(vcat([X, Z, sel]...))
+    vars_XZ_only = setdiff(unique(vcat([X, Z]...)), target)
+
+    #df_sampl = by(data, vars_all, n = sel[1] => length)
+    df_sampl = data
+    df_sampl_obs = df_sampl[ df_sampl[:, sel[1]] .== 1, :]
+    df_sampl_obs = @transform(groupby(df_sampl_obs, vars_XZ_only), p_hat = :n/sum(:n))
+    df_sampl_nonobs = by(df_sampl[ df_sampl[:, sel[1]] .== 0,:], vars_XZ_only, m = :n => sum)
+    #df_sampl_obs = leftjoin(df_sampl_obs, df_sampl_nonobs, on = vars_XZ_only)
+    df_sampl_obs = crossjoin(df_sampl_obs, df_sampl_nonobs,  makeunique=true)
+    df_sampl_obs = df_sampl_obs[df_sampl_obs.x1 .== df_sampl_obs.x1_1,:]
+    df_sampl_obs = df_sampl_obs[df_sampl_obs.x2 .== df_sampl_obs.x2_1,:]
+    df_sampl_obs.O = 1
+    O_start = df_sampl_obs.O
 
     for iter in 1:maxiter
-        data_temp = @transform(groupby(data_temp, Z), m_hat = :m .* :p_hat .* :O / sum(:p_hat .* :O))
-        data_temp = @transform(groupby(data_temp, X), O = sum(:m_hat) / sum(:n))
-        dif = sum((O_start - data_temp.O).^2)   
+        df_sampl_obs = @transform(groupby(df_sampl_obs, Z), m_hat = :m .* :p_hat .* :O / sum(:p_hat .* :O))
+        df_sampl_obs = @transform(groupby(df_sampl_obs, X), O = sum(:m_hat) / sum(:n))
+        dif = sum((O_start - df_sampl_obs.O).^2)   
         if (dif < tol)
             println("Converged on interation: ", iter, " with diff equal to ", dif)
             break
         end
-        O_start = data_temp.O
+        O_start = df_sampl_obs.O
     end
-
-    return data_temp
+    
+    return df_sampl_obs
 end 
 
 

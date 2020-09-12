@@ -55,7 +55,7 @@ df.z3_x1[df.x1 .== 2] .= wsample([1, 2, 3], sim3_C_x1[2, :], sum(df.x1 .==2))
 df.z3_x1[df.x1 .== 3] .= wsample([1, 2, 3], sim3_C_x1[3, :], sum(df.x1 .==3))
 df.z3_x2[df.x2 .== 0] .= wsample([0, 1], sim3_C_x2[1, :], sum(df.x2 .==0))
 df.z3_x2[df.x2 .== 1] .= wsample([0, 1], sim3_C_x2[2, :], sum(df.x2 .==1))
-
+df.z3_x2 = Array(df.z3_x2)
 ## change to categorical
 categorical!(df, [:x1, :x2, :y, :z1_x1, :z2_y, :z3_x1, :z3_x2, :z3_y])
 
@@ -67,7 +67,8 @@ vcramer(freqtable(df.x1, df.x2))
 
 ##### this is for simulation
 ## response error
-df.eta_sel = @. 1.5 * (df.y == 3) - 0.5 * (df.x2 == 1)
+df.eta_sel = @. 0.5 * (df.y == 3) - 1.5 * (df.x2 == 0) ## very bad classification
+
 df.pr_sel = @. exp(df.eta_sel) / (1 + exp(df.eta_sel))
  
 ## dataframe to save results
@@ -76,55 +77,68 @@ df_results = DataFrame(
     iter=Int64[], cat = Int64[], 
     known=Float64[], 
     noerr=Float64[], 
-    #mis1=Float64[], mis2=Float64[], mis3=Float64[], 
+    mis1=Float64[], mis2=Float64[], mis3=Float64[], 
     naive=Float64[])
 
-for b in 1:200
-    Random.seed!(b)
+    
+for b in 1:10
+    Random.seed!(b);
     ### observed data 
     df.flag_sel = [rand(Bernoulli(i)) for i in df.pr_sel]
-    
-        ## audit sample from selected
-        audit_sample = df[sample(findall(df.flag_sel), 2000),:]
-        audit_sample.z3_x2 = Array(audit_sample.z3_x2) ## convert categorical to int
-        ### estimation of probabilities
-        model_z1_x1 = fit(EconometricModel, @formula(z3_x1 ~ x1), audit_sample) ## multinomial
-        model_z2_y = fit(EconometricModel, @formula(z2_y ~ y), audit_sample) ## multinomial
-        model_z3_x1 = fit(EconometricModel, @formula(z3_x1 ~ x1), audit_sample) ## binomial
-        model_z3_x2 = fit(EconometricModel, @formula(z3_x2 ~ x2), audit_sample) ## multinomial
-        model_z3_y = fit(EconometricModel, @formula(z3_y ~ y), audit_sample) ## multinomial
-        ### fitted probabilities
-        model_z1_x1_pr = mapslices(softmax, fitted(model_z1_x1), dims =2)
-        model_z2_y_pr = mapslices(softmax, fitted(model_z2_y), dims =2)
-        model_z3_x1_pr = mapslices(softmax, fitted(model_z3_x1), dims =2)
-        model_z3_x2_pr = hcat(fitted(model_z3_x2), 1 .- fitted(model_z3_x2))
-        model_z3_y_pr = mapslices(softmax, fitted(model_z3_y), dims = 2)
+    ## audit sample from selected
+    audit_sample = df[sample(findall(df.flag_sel), 2000),:]
+    ### estimation of probabilities
+    #model_z1_x1 = fit(LassoModel, @formula(x1  ~ z1_x1), audit_sample, ); ## multinomial
+    #model_z2_y = fit(EconometricModel, @formula(y ~ z2_y ), audit_sample); ## multinomial
+    #model_z3_x1 = fit(EconometricModel, @formula(x1 ~ z3_x1), audit_sample); ## multinomial
+    #model_z3_x2 = fit(EconometricModel, @formula(x2 ~ z3_x2), audit_sample); ## binomial
+    #model_z3_y = fit(EconometricModel, @formula(y ~ z3_y ), audit_sample); ## multinomial
+    ### fitted probabilities
+    #model_z1_x1_pr = DataFrame(mapslices(softmax, fitted(model_z1_x1), dims =2), ["z1_x1_1", "z1_x1_2", "z1_x1_3"]);
+    #model_z2_y_pr = DataFrame(mapslices(softmax, fitted(model_z2_y), dims =2), ["z2_y_1", "z2_y_2", "z2_y_3"]);
+    #model_z3_x1_pr = DataFrame(mapslices(softmax, fitted(model_z3_x1), dims =2), ["z3_x1_1", "z3_x1_2", "z3_x1_3"]);
+    #model_z3_x2_pr = DataFrame(mapslices(softmax, fitted(model_z3_x2), dims =2), ["z3_x2_1", "z3_x2_2"]);
+    #model_z3_y_pr = DataFrame(mapslices(softmax, fitted(model_z3_y), dims = 2), ["z3_y_1", "z3_y_2", "z3_y_3"]);    
+    #audit_sampl_preds =  hcat(audit_sample, model_z1_x1_pr, model_z2_y_pr, model_z3_x1_pr, model_z3_x2_pr, model_z3_y_pr)
+    ## aggregate data for models
 
-    ## prepare data -- without errors
-    df_sampl = by(df, [:flag_sel, :y, :x1, :x2], n = :flag_sel => length)
-    df_sampl_obs = df_sampl[df_sampl.flag_sel .== 1, :]
-    df_sampl_obs = @transform(groupby(df_sampl_obs, [:x1, :x2]), p_hat = :n/sum(:n))
-    df_sampl_nonobs = by(df_sampl[df_sampl.flag_sel .== 0,:], [:x1, :x2], m = :n => sum)
-    df_sampl_obs = leftjoin(df_sampl_obs, df_sampl_nonobs, on = [:x1, :x2])
-    df_sampl_obs.O = 1
-    O_start = df_sampl_obs.O
-        
-        
     ## using all information (testing whether the method works)
-    res_noerr = nmar_npar( [:y, :x2], [:x1, :x2], df_sampl_obs) ##### without errors
-    #res_mis1 = nmar_npar(:flag_sel, :y, [:y, :x2], [:z1_x1, :x2], df) ## with errors in x1
-    #res_mis2 = nmar_npar(:flag_sel, :z2_y, [:z2_y, :x2], [:x1, :x2], df) ## with errors in y
-    #res_mis3 = nmar_npar(:flag_sel, :z3_y, [:z3_y, :z3_x2], [:z3_x1, :z3_x2], df) ## with errors on all 
+    df_nocorr =  by(df, [:flag_sel, :x1, :x2, :y], n = :flag_sel => length)
+    res_noerr = nmar_nonpar([:y, :x2], [:x1, :x2], [:flag_sel], [:y],  df_nocorr) 
+    
+    ## with errors in x1
+    df_nocorr_1 =  by(df, [:flag_sel, :z1_x1, :x2, :y], n = :flag_sel => length)
+    res_mis1 = nmar_nonpar([:y, :x2], [:z1_x1, :x2], [:flag_sel], [:y],  df_nocorr_1)
+    
+    ## correcting for errors in x1
+    df_corr_1 = DataFrame(prop(freqtable(audit_sample.z1_x1, audit_sample.x1), margins = 2)', ["1", "2", "3"])
+    df_corr_1 = stack(df_corr_1, variable_name=:z1_x1, value_name=:prob)
+    df_corr_1.x1 = repeat([1, 2, 3], 3)
+    df_corr_1.z1_x1 = parse.(Int64, Array(df_corr_1.z1_x1))
+    df_corrected = crossjoin(df_nocorr_1, df_corr_1, makeunique=true)
+    df_corrected = df_corrected[df_corrected.z1_x1 .== df_corrected.z1_x1_1,:]
+    df_corrected.n_prob = df_corrected.n .* df_corrected.prob
+    df_corrected_model = by(df_corrected, [:flag_sel, :x1, :x2, :y], n = :n_prob => sum)
+   
+    res_mis1 = nmar_nonpar([:y, :x2], [:x1, :x2], [:flag_sel], [:y],  ddd)
 
+    ## with errors in y
+    df_nocorr_2 =  by(df, [:flag_sel, :x1, :x2, :z2_y], n = :flag_sel => length)
+    res_mis2 = nmar_nonpar([:z2_y, :x2], [:x1, :x2], [:flag_sel], [:y],  df_nocorr_2) 
+
+    ## with errors on all 
+    df_nocorr_3 =  by(df, [:flag_sel, :z3_x1, :z3_x2, :z3_y], n = :flag_sel => length)
+    res_mis3 = nmar_nonpar([:z3_y, :z3_x2], [:z3_x1, :z3_x2], [:flag_sel], [:y],  df_nocorr_3)
+
+    
     sim_res = DataFrame(
         iter = [b,b,b],
         cat = sort(unique(df.y)), 
         known = freqtable(df.y) |> prop,
-        #noerr = freqtable(res_noerr.y, weights = res_noerr.m_hat .+ res_noerr.n) |> prop,
         noerr = freqtable(res_noerr.y, weights =  res_noerr.m_hat .+ res_noerr.n ) |> prop,
-        #mis1= freqtable(res_mis1.y, weights = res_mis1.m_hat .+ res_mis1.n) |> prop,
-        #mis2= freqtable(res_mis2.z2_y, weights = res_mis2.m_hat .+ res_mis2.n) |> prop,
-        #mis3 = freqtable(res_mis3.z3_y, weights = res_mis3.m_hat .+ res_mis3.n) |> prop,
+        mis1= freqtable(res_mis1.y, weights = res_mis1.m_hat .+ res_mis1.n) |> prop,
+        mis2= freqtable(res_mis2.z2_y, weights = res_mis2.m_hat .+ res_mis2.n) |> prop,
+        mis3 = freqtable(res_mis3.z3_y, weights = res_mis3.m_hat .+ res_mis3.n) |> prop,
         naive = freqtable(df.y[df.flag_sel .==1]) |> prop
         ) 
         append!(df_results, sim_res)
@@ -149,3 +163,4 @@ df_plot = stack(df_results, [:known, :noerr, :mis1, :mis2, :mis3, :naive])
 df_plot.variable = String.(df_plot.variable)
 StatsPlots.boxplot(df_plot.variable, df_plot.value, group = df_plot.cat)
 
+by(res_noerr, :y, x -> sum(x.n .* (1 .+ x.O))) 
