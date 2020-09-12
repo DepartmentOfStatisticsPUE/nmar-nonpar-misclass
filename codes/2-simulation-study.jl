@@ -120,7 +120,7 @@ for b in 1:10
     df_corrected.n_prob = df_corrected.n .* df_corrected.prob
     df_corrected_model = by(df_corrected, [:flag_sel, :x1, :x2, :y], n = :n_prob => sum)
    
-    res_mis1 = nmar_nonpar([:y, :x2], [:x1, :x2], [:flag_sel], [:y],  ddd)
+    res_mis1 = nmar_nonpar([:y, :x2], [:x1, :x2], [:flag_sel], [:y],  m2)
 
     ## with errors in y
     df_nocorr_2 =  by(df, [:flag_sel, :x1, :x2, :z2_y], n = :flag_sel => length)
