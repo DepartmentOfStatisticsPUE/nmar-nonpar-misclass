@@ -27,7 +27,7 @@ end
 
 
 function nmar_nonpar(X::Array{Symbol,1}, Z::Array{Symbol,1}, sel::Array{Symbol,1}, target::Array{Symbol,1}, 
-                     data::DataFrame, maxiter=10000, tol = sqrt(eps()))::DataFrame
+                     data::DataFrame; maxiter=20000, tol = sqrt(eps()))::DataFrame
     
     #vars_all = unique(vcat([X, Z, sel]...))
     vars_XZ_only = setdiff(unique(vcat([X, Z]...)), target)
@@ -43,7 +43,7 @@ function nmar_nonpar(X::Array{Symbol,1}, Z::Array{Symbol,1}, sel::Array{Symbol,1
     #df_sampl_obs = df_sampl_obs[df_sampl_obs.x2 .== df_sampl_obs.x2_1,:]
     df_sampl_obs.O = 1
     O_start = df_sampl_obs.O
-
+    iter_m = 0
     for iter in 1:maxiter
         df_sampl_obs = @transform(groupby(df_sampl_obs, Z), m_hat = :m .* :p_hat .* :O / sum(:p_hat .* :O))
         df_sampl_obs = @transform(groupby(df_sampl_obs, X), O = sum(:m_hat) / sum(:n))
@@ -53,8 +53,9 @@ function nmar_nonpar(X::Array{Symbol,1}, Z::Array{Symbol,1}, sel::Array{Symbol,1
             break
         end
         O_start = df_sampl_obs.O
+        iter_m = iter
     end
-    
+    println(iter_m)
     return df_sampl_obs
 end 
 

@@ -77,11 +77,13 @@ df_results = DataFrame(
     iter=Int64[], cat = Int64[], 
     known=Float64[], 
     noerr=Float64[], 
-    mis1=Float64[], mis2=Float64[], mis3=Float64[], 
+    mis1a=Float64[], mis1b=Float64[], 
+    mis2a=Float64[], mis2b=Float64[], 
+    mis3a=Float64[], mis3b=Float64[], 
     naive=Float64[])
 
     
-for b in 1:10
+for b in 1:100
     Random.seed!(b);
     ### observed data 
     df.flag_sel = [rand(Bernoulli(i)) for i in df.pr_sel]
@@ -108,37 +110,69 @@ for b in 1:10
     
     ## with errors in x1
     df_nocorr_1 =  by(df, [:flag_sel, :z1_x1, :x2, :y], n = :flag_sel => length)
-    res_mis1 = nmar_nonpar([:y, :x2], [:z1_x1, :x2], [:flag_sel], [:y],  df_nocorr_1)
+    res_mis1a = nmar_nonpar([:y, :x2], [:z1_x1, :x2], [:flag_sel], [:y],  df_nocorr_1)
     
     ## correcting for errors in x1
-    df_corr_1 = DataFrame(prop(freqtable(audit_sample.z1_x1, audit_sample.x1), margins = 2)', ["1", "2", "3"])
+    df_corr_1 = DataFrame(Array(prop(freqtable(audit_sample.z1_x1, audit_sample.x1), margins = 1)), ["1", "2", "3"])
     df_corr_1 = stack(df_corr_1, variable_name=:z1_x1, value_name=:prob)
     df_corr_1.x1 = repeat([1, 2, 3], 3)
     df_corr_1.z1_x1 = parse.(Int64, Array(df_corr_1.z1_x1))
-    df_corrected = crossjoin(df_nocorr_1, df_corr_1, makeunique=true)
-    df_corrected = df_corrected[df_corrected.z1_x1 .== df_corrected.z1_x1_1,:]
+    df_corrected = leftjoin(df_nocorr_1, df_corr_1, on = :z1_x1)
     df_corrected.n_prob = df_corrected.n .* df_corrected.prob
     df_corrected_model = by(df_corrected, [:flag_sel, :x1, :x2, :y], n = :n_prob => sum)
    
-    res_mis1 = nmar_nonpar([:y, :x2], [:x1, :x2], [:flag_sel], [:y],  m2)
+    res_mis1b = nmar_nonpar([:y, :x2], [:x1, :x2], [:flag_sel], [:y],  df_corrected_model)
 
     ## with errors in y
     df_nocorr_2 =  by(df, [:flag_sel, :x1, :x2, :z2_y], n = :flag_sel => length)
-    res_mis2 = nmar_nonpar([:z2_y, :x2], [:x1, :x2], [:flag_sel], [:y],  df_nocorr_2) 
+    res_mis2a = nmar_nonpar([:z2_y, :x2], [:x1, :x2], [:flag_sel], [:y],  df_nocorr_2) 
+
+    df_corr_2 = DataFrame(Array(prop(freqtable(audit_sample.z2_y, audit_sample.y), margins = 1)), ["1", "2", "3"])
+    df_corr_2 = stack(df_corr_2, variable_name=:z2_y, value_name=:prob)
+    df_corr_2.y = repeat([1, 2, 3], 3)
+    df_corr_2.z2_y = parse.(Int64, Array(df_corr_2.z2_y))
+    df_corrected = leftjoin(df_nocorr_2, df_corr_2, on = :z2_y)
+    df_corrected.n_prob = df_corrected.n .* df_corrected.prob
+    df_corrected_model2 = by(df_corrected, [:flag_sel, :x1, :x2, :y], n = :n_prob => sum)
+   
+    res_mis2b = nmar_nonpar([:y, :x2], [:x1, :x2], [:flag_sel], [:y],  df_corrected_model2)
 
     ## with errors on all 
     df_nocorr_3 =  by(df, [:flag_sel, :z3_x1, :z3_x2, :z3_y], n = :flag_sel => length)
-    res_mis3 = nmar_nonpar([:z3_y, :z3_x2], [:z3_x1, :z3_x2], [:flag_sel], [:y],  df_nocorr_3)
+    res_mis3a = nmar_nonpar([:z3_y, :z3_x2], [:z3_x1, :z3_x2], [:flag_sel], [:y],  df_nocorr_3)
 
+    df_corr_3_y = DataFrame(Array(prop(freqtable(audit_sample.z3_y, audit_sample.y), margins = 1)), ["1", "2", "3"])
+    df_corr_3_y = stack(df_corr_3_y, variable_name=:z3_y, value_name=:prob_y)
+    df_corr_3_y.y = repeat([1, 2, 3], 3)
+    df_corr_3_y.z3_y = parse.(Int64, Array(df_corr_3_y.z3_y))
+    df_corr_3_x1 = DataFrame(Array(prop(freqtable(audit_sample.z3_x1, audit_sample.x1), margins = 1)), ["1", "2", "3"])
+    df_corr_3_x1 = stack(df_corr_3_x1, variable_name=:z3_x1, value_name=:prob_x1)
+    df_corr_3_x1.x1 = repeat([1, 2, 3], 3)    
+    df_corr_3_x1.z3_x1 = parse.(Int64, Array(df_corr_3_x1.z3_x1))
+    df_corr_3_x2 = DataFrame(Array(prop(freqtable(audit_sample.z3_x2, audit_sample.x2), margins = 1)'), ["0", "1"])
+    df_corr_3_x2 = stack(df_corr_3_x2, variable_name=:z3_x2, value_name=:prob_x2)
+    df_corr_3_x2.x2 = repeat([0, 1], 2)   
+    df_corr_3_x2.z3_x2 = parse.(Int64, Array(df_corr_3_x2.z3_x2))
     
+    df_corrected = leftjoin(df_nocorr_3, df_corr_3_y, on = :z3_y)
+    df_corrected = leftjoin(df_corrected, df_corr_3_x1, on = :z3_x1)
+    df_corrected = leftjoin(df_corrected, df_corr_3_x2, on = :z3_x2)
+    df_corrected.n_prob = df_corrected.n .* df_corrected.prob_y .* df_corrected.prob_x1 .* df_corrected.prob_x2
+    df_corrected_model3 = by(df_corrected, [:flag_sel, :x1, :x2, :y], n = :n_prob => sum)
+    
+    res_mis3b = nmar_nonpar([:y, :x2], [:x1, :x2], [:flag_sel], [:y],  df_corrected_model3)
+
     sim_res = DataFrame(
-        iter = [b,b,b],
+        iter = repeat([b], length(unique(df.y))),
         cat = sort(unique(df.y)), 
         known = freqtable(df.y) |> prop,
         noerr = freqtable(res_noerr.y, weights =  res_noerr.m_hat .+ res_noerr.n ) |> prop,
-        mis1= freqtable(res_mis1.y, weights = res_mis1.m_hat .+ res_mis1.n) |> prop,
-        mis2= freqtable(res_mis2.z2_y, weights = res_mis2.m_hat .+ res_mis2.n) |> prop,
-        mis3 = freqtable(res_mis3.z3_y, weights = res_mis3.m_hat .+ res_mis3.n) |> prop,
+        mis1a= freqtable(res_mis1a.y, weights = res_mis1a.m_hat .+ res_mis1a.n) |> prop,
+        mis1b= freqtable(res_mis1b.y, weights = res_mis1b.m_hat .+ res_mis1b.n) |> prop,
+        mis2a= freqtable(res_mis2a.z2_y, weights = res_mis2a.m_hat .+ res_mis2a.n) |> prop,
+        mis2b= freqtable(res_mis2b.y, weights = res_mis2b.m_hat .+ res_mis2b.n) |> prop,
+        mis3a = freqtable(res_mis3a.z3_y, weights = res_mis3a.m_hat .+ res_mis3a.n) |> prop,
+        mis3b = freqtable(res_mis3b.y, weights = res_mis3b.m_hat .+ res_mis3b.n) |> prop,
         naive = freqtable(df.y[df.flag_sel .==1]) |> prop
         ) 
         append!(df_results, sim_res)
