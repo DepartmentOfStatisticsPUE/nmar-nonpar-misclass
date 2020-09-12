@@ -37,10 +37,10 @@ function nmar_nonpar(X::Array{Symbol,1}, Z::Array{Symbol,1}, sel::Array{Symbol,1
     df_sampl_obs = df_sampl[ df_sampl[:, sel[1]] .== 1, :]
     df_sampl_obs = @transform(groupby(df_sampl_obs, vars_XZ_only), p_hat = :n/sum(:n))
     df_sampl_nonobs = by(df_sampl[ df_sampl[:, sel[1]] .== 0,:], vars_XZ_only, m = :n => sum)
-    #df_sampl_obs = leftjoin(df_sampl_obs, df_sampl_nonobs, on = vars_XZ_only)
-    df_sampl_obs = crossjoin(df_sampl_obs, df_sampl_nonobs,  makeunique=true)
-    df_sampl_obs = df_sampl_obs[df_sampl_obs.x1 .== df_sampl_obs.x1_1,:]
-    df_sampl_obs = df_sampl_obs[df_sampl_obs.x2 .== df_sampl_obs.x2_1,:]
+    df_sampl_obs = leftjoin(df_sampl_obs, df_sampl_nonobs, on = vars_XZ_only)
+    #df_sampl_obs = crossjoin(df_sampl_obs, df_sampl_nonobs,  makeunique=true)
+    #df_sampl_obs = df_sampl_obs[df_sampl_obs.x1 .== df_sampl_obs.x1_1,:]
+    #df_sampl_obs = df_sampl_obs[df_sampl_obs.x2 .== df_sampl_obs.x2_1,:]
     df_sampl_obs.O = 1
     O_start = df_sampl_obs.O
 
