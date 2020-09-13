@@ -11,8 +11,7 @@ using HypothesisTests
 using NamedArrays
 using StatsModels
 using Econometrics
-using GLM
-using Lasso 
+using MLJLinearModels
 using StatsFuns
 using JDF ## serialization
 using RData
@@ -23,7 +22,6 @@ function vcramer(x)
     statistic = sqrt(test_res.stat / (test_res.n*min(size(x,1)-1,size(x,2)-1)))
     return statistic
 end
-
 
 
 function nmar_nonpar(X::Array{Symbol,1}, Z::Array{Symbol,1}, sel::Array{Symbol,1}, target::Array{Symbol,1}, 
