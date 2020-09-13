@@ -203,6 +203,12 @@ uuid = "ade2ca70-3891-5945-98fb-dc099432e06a"
 deps = ["Mmap"]
 uuid = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 
+[[Dictionaries]]
+deps = ["Indexing", "Random"]
+git-tree-sha1 = "0e3fd3b20e7ad88bf912cea6a2693bfc6253e221"
+uuid = "85a47980-9c8c-11e8-2b9f-f7ca1fa99fb4"
+version = "0.3.2"
+
 [[DiffEqDiffTools]]
 deps = ["ArrayInterface", "LinearAlgebra", "Requires", "SparseArrays", "StaticArrays"]
 git-tree-sha1 = "a4ed8a740484627ea41b47f7e1a25dd909a28353"
@@ -383,6 +389,12 @@ deps = ["Combinatorics", "Distributions", "LinearAlgebra", "Random", "Rmath", "R
 git-tree-sha1 = "be162cf7f657ec92ca02010c82f6323c4dbd2d14"
 uuid = "09f84164-cd44-5f33-b23f-e6b0d136a0d5"
 version = "0.10.0"
+
+[[Indexing]]
+deps = ["Test"]
+git-tree-sha1 = "0cf3ac621cd74b1d03af0cc4275f680b2070a5cc"
+uuid = "313cdc1a-70c2-5d6a-ae34-0150d3930a38"
+version = "1.1.0"
 
 [[IniFile]]
 deps = ["Test"]
@@ -927,6 +939,12 @@ deps = ["OpenSpecFun_jll"]
 git-tree-sha1 = "d8d8b8a9f4119829410ecd706da4cc8594a1e020"
 uuid = "276daf66-3868-5448-9aa4-cd146d93841b"
 version = "0.10.3"
+
+[[SplitApplyCombine]]
+deps = ["Dictionaries", "Indexing"]
+git-tree-sha1 = "c7043ad99364154783a8fcf2f1e4e17fe8568108"
+uuid = "03a91e81-4c3e-53e1-a0a4-9c0c8f19dd66"
+version = "1.1.3"
 
 [[StableRNGs]]
 deps = ["Random", "Test"]
