@@ -71,41 +71,12 @@ for b in 1:500
     df.flag_sel = [rand(Bernoulli(i)) for i in df.ρ];
 
     ## audit sample -- maybe based on size / stratified?
-    audit_sample = df[sample(findall(df.flag_sel), 10000),:]
-    
-    pp_x1 = by(audit_sample, [:x1_star, :x1], n = :flag_sel => length)
-    pp_x1 = @transform(groupby(pp_x1, :x1_star), p_mis = :n/sum(:n))
-    select!(pp_x1, Not(:n))
-
-    pp_x2 = by(audit_sample, [:x2_star, :x2], n = :flag_sel => length)
-    pp_x2 = @transform(groupby(pp_x2, :x2_star), p_mis = :n/sum(:n))
-    select!(pp_x2, Not(:n))
-
-    pp_y = by(audit_sample, [:y_star, :y], n = :flag_sel => length)
-    pp_y = @transform(groupby(pp_y, :y_star), p_mis = :n/sum(:n))
-    select!(pp_y, Not(:n))
-
-    pp_x1_x2 = by(audit_sample, [:x1_x2_star, :x1_x2], n = :flag_sel => length)
-    pp_x1_x2 = @transform(groupby(pp_x1_x2, :x1_x2_star), p_mis = :n/sum(:n))
-    insertcols!(pp_x1_x2, ([:x1_star, :x2_star] .=> invert(split.(pp_x1_x2.x1_x2_star, "")))..., makeunique=true)
-    insertcols!(pp_x1_x2, ([:x1, :x2] .=> invert(split.(pp_x1_x2.x1_x2, "")))..., makeunique=true)
-    pp_x1_x2.x1_star = parse.(Int, string.(pp_x1_x2.x1_star))
-    pp_x1_x2.x2_star = parse.(Int, string.(pp_x1_x2.x2_star))
-    pp_x1_x2.x1 = parse.(Int, string.(pp_x1_x2.x1))
-    pp_x1_x2.x2 = parse.(Int, string.(pp_x1_x2.x2))
-    select!(pp_x1_x2, [:x1_star, :x2_star, :x1, :x2, :p_mis])
-
-    pp_y_x1_x2 = by(audit_sample, [:y_x1_x2_star, :y_x1_x2], n = :flag_sel => length)
-    pp_y_x1_x2 = @transform(groupby(pp_y_x1_x2, :y_x1_x2_star), p_mis = :n/sum(:n))
-    insertcols!(pp_y_x1_x2, ([:y_star,:x1_star, :x2_star] .=> invert(split.(pp_y_x1_x2.y_x1_x2_star, "")))..., makeunique=true)
-    insertcols!(pp_y_x1_x2, ([:y, :x1, :x2] .=> invert(split.(pp_y_x1_x2.y_x1_x2, "")))..., makeunique=true)
-    pp_y_x1_x2.y_star = parse.(Int, string.(pp_y_x1_x2.y_star))
-    pp_y_x1_x2.x1_star = parse.(Int, string.(pp_y_x1_x2.x1_star))
-    pp_y_x1_x2.x2_star = parse.(Int, string.(pp_y_x1_x2.x2_star))
-    pp_y_x1_x2.y = parse.(Int, string.(pp_y_x1_x2.y))
-    pp_y_x1_x2.x1 = parse.(Int, string.(pp_y_x1_x2.x1))
-    pp_y_x1_x2.x2 = parse.(Int, string.(pp_y_x1_x2.x2))
-    select!(pp_y_x1_x2, [:y_star, :x1_star, :x2_star, :y, :x1, :x2, :p_mis])
+    audit_sample = df[sample(findall(df.flag_sel), 5000),:]
+    #model_x1 = glm(@formula(x1 ~ x1_star + x2 + y), audit_sample, Bernoulli())
+    model_x1 = glm(@formula(x1 ~ x1_star + x2_star + y), audit_sample, Bernoulli())
+    model_x2 = glm(@formula(x2 ~ x2_star + x1_star + y), audit_sample, Bernoulli())
+    model_y = glm(@formula(y ~ y_star + x1 + x2), audit_sample, Bernoulli())
+    model_y_x1_x2 = glm(@formula(y ~ y_star + x1_star + x2_star), audit_sample, Bernoulli())
 
     ## no errors
     df_nocorr =  by(df, [:flag_sel, :x1, :x2, :y], n = :flag_sel => length)
@@ -116,8 +87,11 @@ for b in 1:500
     res_err_x1 = nmar_nonpar([:y, :x1_star], [:x1_star, :x2], [:flag_sel], [:y],  df_err_x1)
     
     ## correct errors in x1 based on audit sample
-    df_err_x1_cor = leftjoin(df_err_x1, pp_x1, on = :x1_star)
-    df_err_x1_cor.n = df_err_x1_cor.n .* df_err_x1_cor.p_mis
+    df_err_x1.x1_1 = predict(model_x1, df_err_x1)
+    df_err_x1.x1_0 = 1 .- df_err_x1.x1_1
+    df_err_x1_cor = stack(df_err_x1, [:x1_1, :x1_0], value_name = :p, variable_name = :x1)
+    df_err_x1_cor.x1 = parse.(Int, replace.(df_err_x1_cor.x1, "x1_" => ""))
+    df_err_x1_cor.n = df_err_x1_cor.n .* df_err_x1_cor.p
     df_err_x1_cor = by(df_err_x1_cor, [:flag_sel, :x1, :x2, :y], n = :n => sum)
     res_err_x1_cor = nmar_nonpar([:y, :x1], [:x1, :x2], [:flag_sel], [:y],  df_err_x1_cor)
 
@@ -126,8 +100,11 @@ for b in 1:500
     res_err_x2 = nmar_nonpar([:y, :x1], [:x1, :x2_star], [:flag_sel], [:y],  df_err_x2)
 
     ## correct errirs in x2 based on audit sample
-    df_err_x2_cor = leftjoin(df_err_x2, pp_x2, on = :x2_star)
-    df_err_x2_cor.n = df_err_x2_cor.n .* df_err_x2_cor.p_mis
+    df_err_x2.x2_1 = predict(model_x2, df_err_x2)
+    df_err_x2.x2_0 = 1 .- df_err_x2.x2_1
+    df_err_x2_cor = stack(df_err_x2, [:x2_1, :x2_0], value_name = :p, variable_name = :x2)
+    df_err_x2_cor.x2 = parse.(Int, replace.(df_err_x2_cor.x2, "x2_" => ""))
+    df_err_x2_cor.n = df_err_x2_cor.n .* df_err_x2_cor.p
     df_err_x2_cor = by(df_err_x2_cor, [:flag_sel, :x1, :x2, :y], n = :n => sum)
     res_err_x2_cor = nmar_nonpar([:y, :x1], [:x1, :x2], [:flag_sel], [:y],  df_err_x2_cor)
 
@@ -146,8 +123,11 @@ for b in 1:500
     res_err_y = nmar_nonpar([:y_star, :x1], [:x1, :x2], [:flag_sel], [:y_star],  df_err_y)
 
     ## correct error in y, not in x1, x2
-    df_err_y_cor = leftjoin(df_err_y, pp_y, on = :y_star)
-    df_err_y_cor.n = df_err_y_cor.n .* df_err_y_cor.p_mis
+    df_err_y.y_1 = predict(model_y, df_err_y)
+    df_err_y.y_0 = 1 .- df_err_y.y_1
+    df_err_y_cor = stack(df_err_y, [:y_1, :y_0], value_name = :p, variable_name = :y)
+    df_err_y_cor.y = parse.(Int, replace.(df_err_y_cor.y, "y_" => ""))
+    df_err_y_cor.n = df_err_y_cor.n .* df_err_y_cor.p
     df_err_y_cor = by(df_err_y_cor, [:flag_sel, :x1, :x2, :y], n = :n => sum)
     res_err_y_cor = nmar_nonpar([:y, :x1], [:x1, :x2], [:flag_sel], [:y],  df_err_y_cor)
 
@@ -171,7 +151,7 @@ for b in 1:500
         iter = repeat([b], length(unique(df.y))),
         y = sort(unique(df.y)),
         y_true = freqtable(df.y) |> prop,
-        y_naive =freqtable(df.y[df.flag_sel .== 1]) |> prop,
+        y_naive = freqtable(df.y[df.flag_sel .== 1]) |> prop,
         y_corr  = freqtable(res_mis1a.y, weights = res_mis1a.n .+ res_mis1a.m_hat) |> prop,
         ## errors in x1, x2
         y_err_x1 = freqtable(res_err_x1.y, weights = res_err_x1.n .+ res_err_x1.m_hat) |> prop,
