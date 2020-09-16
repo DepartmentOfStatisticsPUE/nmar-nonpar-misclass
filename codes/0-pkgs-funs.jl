@@ -18,6 +18,7 @@ using JDF ## serialization
 using RData
 using RegressionTables
 using SplitApplyCombine
+using LatexPrint
 
 function vcramer(x)
     test_res = ChisqTest(x)
@@ -56,3 +57,15 @@ function nmar_nonpar(X::Array{Symbol,1}, Z::Array{Symbol,1}, sel::Array{Symbol,1
 end 
 
 
+## linear calibration
+
+function lin_calib(X, d, T̂ₓ)
+    @assert size(X)[1] == size(d)[1] "X and d have different number of rows"
+    @assert size(X)[2] == size(T̂ₓ)[2] "X and T̂ₓ have different number of columns"
+    @assert sum(X) > 0 "All elements of X are zero"
+    @assert all(sum(X, dims = 1) .> 0) "One of X column has only zero elements"
+    @assert all(T̂ₓ .> 0) "Some total is equal to zero"
+    D = Diagonal(d);
+    w = d + D*X*inv(X'D*X)*(T̂ₓ - d'X)';
+    return(w)
+end

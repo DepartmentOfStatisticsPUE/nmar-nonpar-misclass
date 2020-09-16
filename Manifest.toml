@@ -488,6 +488,11 @@ git-tree-sha1 = "0130cd955a3f0a97b294d1fb117553e8ccef5092"
 uuid = "b4fcebef-c861-5a0f-a7e2-ba9dc32b180a"
 version = "0.5.2"
 
+[[LatexPrint]]
+git-tree-sha1 = "aa3de91174329957fd625c5a3d126d6c79977008"
+uuid = "d2208f48-c256-5759-9089-c25ed2a93924"
+version = "1.0.0"
+
 [[LearnBase]]
 git-tree-sha1 = "a0d90569edd490b82fdc4dc078ea54a5a800d30a"
 uuid = "7f8f8fb0-2700-5f03-b4bd-41f8cfc144b6"

@@ -26,15 +26,21 @@ df.x1_star[df.x1 .== 0] .= rand(Bernoulli(0.25), sum(df.x1 .== 0))
 df.x1_star[df.x1 .== 1] .= rand(Bernoulli(0.95), sum(df.x1 .== 1)) 
 prop(freqtable(df.x1, df.x1_star), margins = 1)
 
+prop(freqtable(df.x1, df.x1_star), margins = 1) |> (x -> round.(x, digits=2)) |> lap
+
 df.x2_star = 0
 df.x2_star[df.x2 .== 0] .= rand(Bernoulli(0.15), sum(df.x2 .== 0)) 
 df.x2_star[df.x2 .== 1] .= rand(Bernoulli(0.80), sum(df.x2 .== 1)) 
 prop(freqtable(df.x2, df.x2_star), margins = 1)
 
+prop(freqtable(df.x2, df.x2_star), margins = 1) |> (x -> round.(x, digits=2)) |> lap
+
+
 df.y_star = 0
 df.y_star[df.y .== 0] .= rand(Bernoulli(0.15), sum(df.y .== 0)) 
 df.y_star[df.y .== 1] .= rand(Bernoulli(0.90), sum(df.y .== 1)) 
 prop(freqtable(df.y, df.y_star), margins = 1)
+prop(freqtable(df.y, df.y_star), margins = 1) |> (x -> round.(x, digits=2)) |> lap
 
 df.x1_x2 = string.(df.x1) .* string.(df.x2)
 df.x1_x2_star = string.(df.x1_star) .* string.(df.x2_star)
@@ -72,7 +78,6 @@ for b in 1:500
 
     ## audit sample -- maybe based on size / stratified?
     audit_sample = df[sample(findall(df.flag_sel), 5000),:]
-    #model_x1 = glm(@formula(x1 ~ x1_star + x2 + y), audit_sample, Bernoulli())
     model_x1 = glm(@formula(x1 ~ x1_star + x2_star + y), audit_sample, Bernoulli())
     model_x2 = glm(@formula(x2 ~ x2_star + x1_star + y), audit_sample, Bernoulli())
     model_y = glm(@formula(y ~ y_star + x1 + x2), audit_sample, Bernoulli())
