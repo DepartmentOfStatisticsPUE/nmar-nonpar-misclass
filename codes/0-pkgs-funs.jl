@@ -19,6 +19,7 @@ using RData
 using RegressionTables
 using SplitApplyCombine
 using LatexPrint
+using LinearAlgebra
 
 function vcramer(x)
     test_res = ChisqTest(x)
@@ -57,9 +58,9 @@ function nmar_nonpar(X::Array{Symbol,1}, Z::Array{Symbol,1}, sel::Array{Symbol,1
 end 
 
 
-## linear calibration
+## linear calibration (for comparison)
 
-function lin_calib(X, d, T̂ₓ)
+function lin_calib(X::Array, d::Array, T̂ₓ::Array)
     @assert size(X)[1] == size(d)[1] "X and d have different number of rows"
     @assert size(X)[2] == size(T̂ₓ)[2] "X and T̂ₓ have different number of columns"
     @assert sum(X) > 0 "All elements of X are zero"
@@ -69,3 +70,5 @@ function lin_calib(X, d, T̂ₓ)
     w = d + D*X*inv(X'D*X)*(T̂ₓ - d'X)';
     return(w)
 end
+
+
