@@ -25,3 +25,17 @@ Environment:
   JULIA_NUM_THREADS = 4
 ```
 
+# Outline of the paper
+
+
+## Simulation study
+
+We conduct two limited simulation studies
+
+1. Replicate Riddels, Kim and Im (2016) simulation study II assuming mis-classification in x1, x2 and y.
+2. New simulation study where X is categorical variable with h number of classes and Y is variable with 3 categories.
+
+
+
+Application
+
