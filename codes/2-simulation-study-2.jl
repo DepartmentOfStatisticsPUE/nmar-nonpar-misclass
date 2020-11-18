@@ -3,7 +3,7 @@
 ## population data
 Random.seed!(123);
 strata_names = [11,12,21,22,31,32]
-strata_sizes = 2000 .* [50,100,150,200, 250, 300]
+strata_sizes = 2000 .* [50,100,150,200,250,300]
 strata = inverse_rle(strata_names, strata_sizes)
 df = DataFrame(strata=strata)
 df.x1 = @. ifelse(SubString(string(df.strata), 1, 1) == "1", 1, 

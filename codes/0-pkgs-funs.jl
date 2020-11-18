@@ -20,6 +20,10 @@ using RegressionTables
 using SplitApplyCombine
 using LatexPrint
 using LinearAlgebra
+using RCall
+using Pipe
+using Latexify
+using Gadfly
 
 function vcramer(x)
     test_res = ChisqTest(x)
@@ -70,5 +74,6 @@ function lin_calib(X::Array, d::Array, T̂ₓ::Array)
     w = d + D*X*inv(X'D*X)*(T̂ₓ - d'X)';
     return(w)
 end
+
 
 
